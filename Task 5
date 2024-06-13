@@ -1,0 +1,63 @@
+import tkinter as tk
+from tkinter import messagebox
+import cv2
+from pyzbar import pyzbar
+from PIL import Image, ImageTk
+
+class QRCodeScannerApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("QR Code Scanner")
+
+        self.video_frame = tk.Label(root)
+        self.video_frame.pack()
+
+        self.info_label = tk.Label(root, text="Scanned Info: ", font=("Arial", 14))
+        self.info_label.pack()
+
+        self.capture_button = tk.Button(root, text="Start Scanning", font=("Arial", 14), command=self.start_scanning)
+        self.capture_button.pack()
+
+        self.cap = None
+        self.running = False
+
+    def start_scanning(self):
+        if self.running:
+            self.running = False
+            self.capture_button.config(text="Start Scanning")
+            self.cap.release()
+        else:
+            self.running = True
+            self.capture_button.config(text="Stop Scanning")
+            self.cap = cv2.VideoCapture(0)
+            self.scan_qr_code()
+
+    def scan_qr_code(self):
+        if self.running:
+            ret, frame = self.cap.read()
+            if ret:
+                frame = cv2.flip(frame, 1)
+                decoded_objects = pyzbar.decode(frame)
+                for obj in decoded_objects:
+                    self.info_label.config(text=f"Scanned Info: {obj.data.decode('utf-8')}")
+                    self.open_link(obj.data.decode('utf-8'))
+
+                img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(img)
+                imgtk = ImageTk.PhotoImage(image=img)
+                self.video_frame.imgtk = imgtk
+                self.video_frame.configure(image=imgtk)
+
+            self.root.after(10, self.scan_qr_code)
+
+    def open_link(self, data):
+        if data.startswith("http"):
+            result = messagebox.askyesno("Open Link", f"Do you want to open this link?\n{data}")
+            if result:
+                import webbrowser
+                webbrowser.open(data)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = QRCodeScannerApp(root)
+    root.mainloop()
